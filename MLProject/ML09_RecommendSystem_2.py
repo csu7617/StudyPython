@@ -3,7 +3,7 @@ Created on 2018年6月4日
 
 @author: HW
 '''
-
+ 
 from matplotlib import pyplot
 import scipy as sp
 import numpy as np
