@@ -45,9 +45,9 @@ def getUserScoreDataStructure(contents):
     userDict = {}
     itemUser = {}
     #userDict[2] = [(1,5),(4,2)]  表示用户2对电影1的评分为5，对电影4的评分为2
-    
     for k in contents:
-        user_rank = (k[1],k[2])
+        #评分最高取5，除以5进行归一化
+        user_rank = (k[1],float(k[2])/5)
         if k[0] in userDict:
             userDict[k[0]].append(user_rank)
         else:
