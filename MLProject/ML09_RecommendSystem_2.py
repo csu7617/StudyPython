@@ -108,7 +108,7 @@ def recommandByUserFC(filename, userId, k = 5):
     
 if __name__ == '__main__':    
     moives = getMoiveList('data/ml-100k/u.item')
-    recommand_list,user_moive,itemUser,neighbors = recommandByUserFC('data/ml-100k/u.data', 100000, 5)
+    recommand_list,user_moive,itemUser,neighbors = recommandByUserFC('data/ml-100k/u.data', 25, 5)
     neighbors_id = [id[1] for id in neighbors]
     print(recommand_list)
     
