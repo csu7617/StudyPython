@@ -30,7 +30,7 @@ def readFile(filename,split,k,encoding='utf-8',DataStyle='str'):
                 elif DataStyle == 'float':
                     c.append(float(rate[i]))
             contents.append(c)
-    return contents
+    return np.array(contents)
 
 def GetIrisData():
     data = datasets.load_iris()

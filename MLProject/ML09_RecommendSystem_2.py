@@ -4,151 +4,154 @@ Created on 2018年6月4日
 @author: HW
 '''
  
-from matplotlib import pyplot
-import scipy as sp
 import numpy as np
-from ML_GetData import readFile
-import sys
-from audioop import reverse
-from texttable import Texttable
+import tensorflow as tf
+from builtins import len
+import datetime
 
-#计算余弦距离
-def getCosDist(user1, user2):
-    sumx = 0.0
-    sumy = 0.0
-    sumxy = 0.0
-    for k1 in user1:
-        for k2 in user2:
-            if k1[0] == k2[0]:
-                sumx += k1[1]*k1[1]
-                sumy += k2[1]*k2[1]
-                sumxy += k1[1]*k2[1]
-    if sumxy == 0.0:
-        return 0
-    demo = np.sqrt(sumx * sumy)
-    return sumxy / demo
-
-def getMoiveList(filename):
-    contents = []
-    with open(filename,mode='r+',encoding='utf-8') as f:
-        for line in f:
-            contents.append(line)
-    
-    moive_info = {}
-    for moive in contents:
-        single_info = moive.split("|")
-        moive_info[int(single_info[0])] = single_info[1:len(single_info)]
-    return moive_info
-
-#生成用户评分数据结构
-def getUserScoreDataStructure(contents):
-    userDict = {}
-    itemUser = {}
-    #userDict[2] = [(1,5),(4,2)]  表示用户2对电影1的评分为5，对电影4的评分为2
-    for k in contents:
-        #评分最高取5，除以5进行归一化
-        user_rank = (k[1],float(k[2])/5)
-        if k[0] in userDict:
-            userDict[k[0]].append(user_rank)
-        else:
-            userDict[k[0]] = [user_rank]
-        if k[1] in itemUser:
-            itemUser[k[1]].append(k[0])
-        else:
-            itemUser[k[1]] = [k[0]]
-#     item = userDict[1]
-#     item_0 = itemUser[item[0]]
-#     print(item,item_0)
-    return userDict, itemUser
-
-#计算与指定用户最相近的邻居
-def getNearestNeighbor(userId,userDict,itemUser):
-    neighbors = []
-    for item in userDict[userId]:
-        for neighbor in itemUser[item[0]]:
-            if neighbor != userId and neighbor not in neighbors:
-                neighbors.append(neighbor)
-    neighbor_dist = []
-    for neighbor in neighbors:
-        dist = getCosDist(userDict[userId],userDict[neighbor])
-        neighbor_dist.append([dist,neighbor])
-    neighbor_dist.sort(reverse=True)
-
-    return neighbor_dist
-    
-#使用UserFC进行推荐，输入文件名，用户ID，邻居数量
-def recommandByUserFC(filename, userId, k = 5):
-    #读取文件
-    contents = readFile(filename, '\t', 3, encoding='utf-8',DataStyle='int')
-    contents = np.array(contents)
-    #格式化数据字典
-    userDict, itemUser = getUserScoreDataStructure(contents)
-    #找邻居
-    neighbors = getNearestNeighbor(userId,userDict,itemUser)[0:5]
-#     print(neighbors)
-    #建立推荐字典
-    recommand_dict = {}
-    for neighbor in neighbors:
-        neighbor_user_id = neighbor[1]
-        moives = userDict[neighbor_user_id]
-        for moive in moives:
-            if moive[0] not in recommand_dict:
-                recommand_dict[moive[0]] = neighbor[0]
+#offset 表示从哪开始读
+def  read_movielens_data(filepath,split_flag,encoding,offset = 0 ,read_line_num=None):
+    data = []
+    with open(filepath,mode='r+',encoding = encoding) as f:
+        f.seek(offset)
+        read_i = 0
+        while True:
+            line = f.readline()
+            if(line==''):
+                break
             else:
-                recommand_dict[moive[0]] += neighbor[0] 
-    #建立推荐列表
-    recommand_list = []
-    for key in recommand_dict:
-        recommand_list.append([recommand_dict[key],key])
-    recommand_list.sort(reverse=True)
-    user_moives = [k[0] for k in userDict[userId]]
-    return [k[1] for k in recommand_list[0:10]],user_moives,itemUser,neighbors
+                line = line.strip()
+                content = line.split(split_flag)
+                data.append([int(content[i]) for i in range(len(content)-1)])
+                if read_line_num!=None:
+                    read_i +=1
+                    if read_i>=read_line_num:
+                        break
+        position = f.tell()
+    data = np.array(data)
     
     
     
-if __name__ == '__main__':    
-    moives = getMoiveList('data/ml-100k/u.item')
-    recommand_list,user_moive,itemUser,neighbors = recommandByUserFC('data/ml-100k/u.data', 25, 5)
-    neighbors_id = [id[1] for id in neighbors]
-    print(recommand_list)
+#     moive = data[:,1]
+#     moive = list(set(moive.tolist()))
+#     print(moive)
+        
+    return data,position
+
+def data_process(data):
+    u_user = np.zeros([943])#对每个人所评价过的电影的平均值
+    u_movie = np.zeros([1682])#对同一部电影的所有人评分的平均值
+    use_data = np.zeros([943,1682])#943人分别对1682部电影的评分减去相应的均值u_user,u_movie，未评分则为0
+    for i in range(943):
+        rating_index = np.argwhere(data[:,0]==i+1).reshape(-1)
+        rating_array = data[rating_index,2].astype(np.float32)
+        if(rating_array.shape[0]>0):
+            u_user[i] = np.mean(rating_array)
+    for i in range(1682):
+        rating_index = np.argwhere(data[:,1]==i+1).reshape(-1)
+        rating_array = data[rating_index,2].astype(np.float32)
+        if(rating_array.shape[0]>0):
+            u_movie[i] = np.mean(rating_array)
+#     print(u_movie)
+    for i in range(943):
+        user_index = np.argwhere(data[:,0] == i+1).reshape(-1)
+
+        user_data = data[user_index,:]
+        for j in range(1682):
+            moive_index = np.argwhere(user_data[:,1]==j+1).reshape(-1)
+            if moive_index.shape[0]>0:
+                use_data[i,j] = float(user_data[moive_index[0],2])-u_movie[j]-u_user[i]
+    print(np.array(use_data).shape)
+    return u_user,u_movie,use_data
+
+def training(training_number,use_data,filter_predict,feature_size,learning_rate = 0.01,lamda = 0.01,min_loss = 0.01):
+    starttime = datetime.datetime.now()
+    use_data = np.array(use_data)
+    use_data = use_data.reshape([use_data.shape[0],-1])
+    
+    x = tf.Variable(tf.truncated_normal([use_data.shape[0],feature_size],stddev=0.02))
+    
+    w = tf.Variable(tf.truncated_normal([use_data.shape[1],feature_size],stddev=0.02))
+    predict = tf.matmul(x,tf.transpose(w))
+    predict = tf.multiply(filter_predict, predict)
+    loss = tf.reduce_sum(tf.square(predict-use_data))+lamda*tf.reduce_sum(tf.square(x)) + lamda*tf.reduce_sum(tf.square(w))
+    optimizer = tf.train.AdamOptimizer(learning_rate)
+    train = optimizer.minimize(loss)
+    with tf.Session() as sess:
+        init = tf.global_variables_initializer()
+        sess.run(init)
+        for train_step in range(training_number):
+            sess.run(train)
+#             if(sess.run(loss)<=min_loss):
+#                 break
+        saver = tf.train.Saver()
+        saver.save(sess, 'data/model/model_ml09_rs_2.ckpt')
+#             print(sess.run(loss))
+    tf.reset_default_graph()   
+    endtime = datetime.datetime.now()
+    
+    print('花费时间：%f'%(endtime-starttime).total_seconds())
     
     
+def test(use_data,filter_predict,feature_size,u_user,u_movie,which_user,recommend_num):
     
+    use_data = np.array(use_data)
+    use_data = use_data.reshape([use_data.shape[0],-1])
     
+    x = tf.Variable(tf.truncated_normal([use_data.shape[0],feature_size],stddev=0.02))
     
+    w = tf.Variable(tf.truncated_normal([use_data.shape[1],feature_size],stddev=0.02))
+    predict = tf.matmul(x,tf.transpose(w))
+    predict = tf.multiply(filter_predict, predict)
     
+    with tf.Session() as sess:
+        init = tf.global_variables_initializer()
+        sess.run(init)
+        saver = tf.train.Saver()
+        saver.restore(sess, 'data/model/model_ml09_rs_2.ckpt')
+        x_ = sess.run(x)
+        w_ = sess.run(w)
+    x = x_
+    w = w_
+    tf.reset_default_graph()
     
+    x_user = x[which_user-1,:]
+    filter_predict_user = filter_predict[which_user-1,:]
+    unrating_index = np.argwhere(filter_predict_user==0).reshape(-1)
+    print(np.array(w[unrating_index,:]).shape,np.array(x_user).shape)
+    predict = np.dot(w[unrating_index,:],np.transpose(x_user)).reshape(-1)
     
+#     print(predict)
     
+    predict = predict + u_user[which_user-1]+ u_movie[unrating_index]
+    predict = predict[0:137]
+    recommend = [] 
+    for i in range(recommend_num):
+        max_index = np.argmax(predict)
+        recommend.append({unrating_index[max_index]+1:predict[max_index]})
+        predict = np.delete(predict,max_index)
+        unrating_index = np.delete(unrating_index,max_index)
+        if(unrating_index.shape[0]<=0):
+            break
+    return recommend
+            
+
+if __name__=='__main__':
     
+    training_number = 100000
+    data_filepath = 'data/ml-100k/u1.base'
+    split_flag = '\t'
+    encoding = 'utf-8'
     
+    data,position = read_movielens_data(data_filepath,split_flag,encoding)#userid,movieid,rating(评分)
+    u_user,u_movie,use_data = data_process(data)#u_user,u_movie在预测时才会用到
+    filter_predict = np.array([[0.0 if use_data[i,j]==0 else 1.0 for j in range(use_data.shape[1])] for i in range(use_data.shape[0])])#当use_data中的元素为0时，则这个矩阵相应位置为0，其余位置为1
+    filter_predict =filter_predict.astype(np.float32)
+    print(filter_predict.shape)
+    training(training_number,use_data,filter_predict,feature_size=5,learning_rate = 0.05,lamda = 0.01,min_loss = 0.01)
     
+    recommend = test(use_data,filter_predict,5,u_user,u_movie,1,5)
+    print(recommend)
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-#     table = Texttable()
-#     table.set_deco(Texttable.HEADER)
-#     table.set_cols_dtype(['t','t','t'])
-#     table.set_cols_align(['1','1','1'])
-#     rows = []
-#     rows.append([u'moive name',u'release',u'from userid'])
-#     for moive_id in recommand_list[:20]:
-#         from_user = []
-#         for user_id in itemUser[moive_id]:
-#             if user_id in neighbors_id:
-#                 from_user.append(user_id)
-#         row = []
-#         row.append(moives[moive_id][0])
-#         row.append(moives[moive_id][1])
-#         row.append("")
-#         rows.append(row)
-#     table.add_row(rows)
-#     print(table.draw())
+
     

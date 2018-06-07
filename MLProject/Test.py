@@ -4,14 +4,14 @@ Created on 2018年5月14日
 @author: Administrator
 '''
 
-import numpy as np
-import tensorflow as tf
-from numpy import *
-import gzip
+import tensorflow as tf;  
+import numpy as np;  
+from sklearn import datasets
+# from numpy import *
+import random
 import pandas as pd
-from sklearn.model_selection import train_test_split
 
-s = 'dsadasdas\tdsdad\t7857'
-split = '\t'
-ss = s.split(split)
-print(ss)
+path = "data/iris_test.csv"
+#names添加列名，header用指定的行为作为标题，若无原标题则设为None
+data = pd.read_csv(path,header=None,names= ['SepalLength','SepalWidth','PetalLength','PetalWidth','Species'])
+print(data)
