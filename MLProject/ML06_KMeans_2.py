@@ -16,6 +16,8 @@ if __name__ == '__main__':
     X = X[:,0:X.shape[1]-1]
 
     kmeans = KMeans(n_clusters=3,init='k-means++',n_jobs=-1,algorithm='auto').fit(X)
-    y = y.reshape(-1)
-#     print(kmeans.labels_,y)
-    print(np.mean(kmeans.labels_==y))
+#     y = y.reshape(-1)
+#     print(y)
+#     predict = 
+    print(kmeans.labels_,y)
+#     print(np.mean(kmeans.labels_==y))
